@@ -157,103 +157,47 @@ with col1:
         st.plotly_chart(fig, use_container_width=True)
 
 with col2:
-    if st.session_state.pesos is not None and st.session_state.ponto_selecionado is not None:
-        st.subheader('PESOS DO PORTFÓLIO SELECIONADO')
+    if st.session_state.pesos is not None:
+        st.subheader('COMPOSIÇÃO DO PORTFÓLIO')
         
-        # Usando os pesos do ponto selecionado
-        pesos_mostrar = st.session_state.pesos[st.session_state.ponto_selecionado]
+        # [Código existente do gráfico de pizza...]
+        st.plotly_chart(fig_pie, use_container_width=True)  # ← Mantenha este
         
-        # Filtrando valores menores que 1%
-        pesos_percentual = pesos_mostrar * 100
-        indices_significativos = pesos_percentual >= 1.0
+        # ===== ADICIONE AQUI O NOVO GRÁFICO DE LINHAS =====
+        st.subheader('RENTABILIDADE HISTÓRICA')
         
-        # Se houver valores pequenos, somá-los em 'Outros'
-        if any(~indices_significativos):
-            labels = []
-            valores = []
-            for ticker, peso, significativo in zip(st.session_state.tickers_lista, pesos_percentual, indices_significativos):
-                if significativo:
-                    labels.append(ticker)
-                    valores.append(peso)
-            
-            # Adiciona a categoria 'Outros'
-            labels.append('Outros')
-            valores.append(sum(pesos_percentual[~indices_significativos]))
-        else:
-            labels = st.session_state.tickers_lista
-            valores = pesos_percentual
-
-        fig_pie = go.Figure()
-        fig_pie.add_trace(go.Pie(
-            labels=labels,
-            values=valores,
-            textinfo='label+percent',
-            hovertemplate="Ticker: %{label}<br>Peso: %{value:.1f}%<extra></extra>",
-            sort=True,
-            direction='clockwise',
-            pull=[0.1 if v >= 1 else 0 for v in valores]
-        ))
-        
-        fig_pie.update_layout(
-            title='Distribuição dos Pesos (%)',
-            showlegend=True
+        ret_ativos, ret_bench = calcular_retorno_acumulado(
+            (st.session_state.dados_ativos, st.session_state.dados_benchmark)
         )
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-
-# Gráfico de performance histórica (Versão Aprimorada)
-if st.session_state.dados_ativos is not None:
-    st.subheader('EVOLUÇÃO DA RENTABILIDADE')
-    
-    # Calcular retorno acumulado em porcentagem
-    retornos_acumulados = (1 + st.session_state.dados_ativos.pct_change()).cumprod() * 100
-    retorno_bench_acumulado = (1 + st.session_state.dados_benchmark.pct_change()).cumprod() * 100
-    
-    fig = go.Figure()
-    
-    # Adicionar cada ativo
-    for ativo in retornos_acumulados.columns:
-        fig.add_trace(go.Scatter(
-            x=retornos_acumulados.index,
-            y=retornos_acumulados[ativo],
+        
+        fig_rent = go.Figure()
+        
+        # Adicionar cada ativo
+        for ativo in ret_ativos.columns:
+            fig_rent.add_trace(go.Scatter(
+                x=ret_ativos.index,
+                y=ret_ativos[ativo] * 100,  # Convertendo para porcentagem
+                mode='lines',
+                name=ativo,
+                hovertemplate="<b>%{fullData.name}</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>"
+            ))
+        
+        # Adicionar benchmark
+        fig_rent.add_trace(go.Scatter(
+            x=ret_bench.index,
+            y=ret_bench * 100,
             mode='lines',
-            name=ativo,
-            hovertemplate=(
-                "<b>%{fullData.name}</b><br>"
-                "Data: %{x|%d/%m/%Y}<br>"
-                "Rentabilidade: %{y:.2f}%<br>"
-                "<extra></extra>"
-            )
+            name=f'Benchmark ({benchmark_input})',
+            line=dict(color='black', dash='dash'),
+            hovertemplate="Benchmark: %{y:.2f}%"
         ))
-    
-    # Adicionar benchmark
-    fig.add_trace(go.Scatter(
-        x=retorno_bench_acumulado.index,
-        y=retorno_bench_acumulado,
-        mode='lines',
-        name=f'Benchmark ({benchmark_input})',
-        line=dict(color='black', width=2, dash='dash'),
-        hovertemplate="Benchmark: %{y:.2f}%<extra></extra>"
-    ))
-    
-    # Configurações do layout
-    fig.update_layout(
-        title='Rentabilidade Acumulada das Ações',
-        xaxis_title='Data',
-        yaxis_title='Rentabilidade Acumulada (%)',
-        hovermode='x unified',
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        ),
-        template='plotly_white',
-        height=600
-    )
-    
-    # Adicionar linha horizontal no 100% (ponto de partida)
-    fig.add_hline(y=100, line_dash="dot", line_color="grey")
-    
-    st.plotly_chart(fig, use_container_width=True)
+        
+        fig_rent.update_layout(
+            title='Evolução da Rentabilidade (%)',
+            xaxis_title='Data',
+            yaxis_title='Rentabilidade Acumulada (%)',
+            hovermode='x unified',
+            template='plotly_white'
+        )
+        
+        st.plotly_chart(fig_rent, use_container_width=True)
