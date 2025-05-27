@@ -5,47 +5,18 @@ from scipy.optimize import minimize
 import plotly.graph_objects as go
 
 def obter_dados_ativos(tickers, benchmark, start=None, end=None):
-    """Obtém dados históricos de fechamento ajustado com tratamento de erros"""
-    try:
-        # Baixa dados dos ativos
-        dados_ativos = yf.download(
-            tickers=tickers,
-            start=start,
-            end=end,
-            progress=False,
-            group_by='ticker'
-        )
-        
-        # Verifica se os dados foram obtidos
-        if dados_ativos.empty:
-            raise ValueError(f"Não foi possível obter dados para os tickers: {tickers}")
-            
-        # Extrai coluna de fechamento ajustado
-        if isinstance(dados_ativos.columns, pd.MultiIndex):
-            adj_close = dados_ativos.xs('Adj Close', axis=1, level=1).dropna()
-        else:
-            adj_close = dados_ativos['Adj Close'].dropna()
-        
-        # Baixa dados do benchmark
-        dados_bench = yf.download(
-            tickers=benchmark,
-            start=start,
-            end=end,
-            progress=False
-        )
-        
-        if dados_bench.empty:
-            raise ValueError(f"Não foi possível obter dados para o benchmark: {benchmark}")
-            
-        bench_close = dados_bench['Adj Close'].dropna()
-        
-        return adj_close, bench_close
-        
-    except Exception as e:
-        error_msg = f"Erro ao obter dados: {str(e)}"
-        if 'Adj Close' in str(e):
-            error_msg = "Erro: Dados de fechamento ajustado não disponíveis. Verifique os tickers."
-        raise ValueError(error_msg)
+    """
+    Obtém dados históricos de fechamento dos ativos e do benchmark usando Yahoo Finance.
+    
+    Parâmetros:
+    tickers (str ou list): Lista de tickers dos ativos
+    benchmark (str): Ticker do benchmark
+    start (str ou datetime, opcional): Data inicial para obtenção dos dados
+    end (str ou datetime, opcional): Data final para obtenção dos dados
+    """
+    dados = yf.download(tickers, start=start, end=end, auto_adjust=False)['Adj Close']
+    benchmark = yf.download(benchmark, start=start, end=end, auto_adjust=False)['Adj Close']
+    return dados.dropna(), benchmark.dropna()
 
 def calcular_retornos(dados):
     """Calcula retornos compostos e estatísticas necessárias"""
