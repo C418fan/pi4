@@ -1,243 +1,185 @@
-import streamlit as st
-from datetime import datetime
-import plotly.graph_objects as go
 import numpy as np
 import pandas as pd
-from Markowitz import obter_dados_ativos, calcular_retornos, calcular_variancia, calcular_retorno_portfolio, calcular_sharpe_ratio, otimizar_portfolio, otimizar_sharpe_ratio, fronteira_eficiente
+import yfinance as yf
+import streamlit as st  
+from scipy.optimize import minimize
+import plotly.graph_objects as go
 
-# Variáveis de estado para armazenar os dados
-if 'retorno_esperado_benchmark' not in st.session_state:
-    st.session_state.retorno_esperado_benchmark = None
-if 'variancia_benchmark' not in st.session_state:
-    st.session_state.variancia_benchmark = None
-if 'retorno_esperado_ativos' not in st.session_state:
-    st.session_state.retorno_esperado_ativos = None
-if 'matriz_cov' not in st.session_state:
-    st.session_state.matriz_cov = None
-if 'retornos_alvo' not in st.session_state:
-    st.session_state.retornos_alvo = None
-if 'volatilidades' not in st.session_state:
-    st.session_state.volatilidades = None
-if 'pesos' not in st.session_state:
-    st.session_state.pesos = None
-if 'pesos_max_sharpe' not in st.session_state:
-    st.session_state.pesos_max_sharpe = None
-if 'ponto_selecionado' not in st.session_state:
-    st.session_state.ponto_selecionado = None
-if 'tickers_lista' not in st.session_state:
-    st.session_state.tickers_lista = None
-if 'dados_ativos' not in st.session_state:  # Novo: para armazenar os dados brutos
-    st.session_state.dados_ativos = None
-if 'dados_benchmark' not in st.session_state:  # Novo: para armazenar os dados brutos
-    st.session_state.dados_benchmark = None
 
-# Criando duas colunas: uma para o sidebar e outra para os dados
-sidebar = st.sidebar
-col1 = st.container()
-col2 = st.container()
+def obter_dados_ativos(tickers, benchmark, start=None, end=None):
+    """
+    Obtém dados históricos de fechamento dos ativos e do benchmark usando Yahoo Finance.
+    
+    Parâmetros:
+    tickers (str ou list): Lista de tickers dos ativos
+    benchmark (str): Ticker do benchmark
+    start (str ou datetime, opcional): Data inicial para obtenção dos dados
+    end (str ou datetime, opcional): Data final para obtenção dos dados
+    """
+    dados = yf.download(tickers, start=start, end=end, auto_adjust=False)['Adj Close']
+    benchmark = yf.download(benchmark, start=start, end=end, auto_adjust=False)['Adj Close']
+    return dados.dropna(), benchmark.dropna()
 
-with sidebar:
-    with st.form("inputs"):
-        tickers_input = st.text_input('Adicione os tickers separados por vírgula')
-        benchmark_input = st.text_input('Adicione o benchmark')
-        taxa_livre_risco = st.number_input('Adicione a taxa livre de risco', value=0.1)
-        data_inicial = st.date_input("Data inicial",
-                                     min_value=datetime(1988, 1, 1),
-                                     max_value=datetime.now().date()
-        )
-        data_final = st.date_input("Data final",
-                                   min_value=datetime(1988, 1, 1),
-                                   max_value=datetime.now().date()
-        )
+def calcular_retornos(dados):
+    """
+    Calcula retornos compostos dos ativos e do índice e estatísticas necessárias.
+    """
+    retornos_ativos = dados[0].pct_change().dropna()
+    retornos_benchmark = dados[1].pct_change().dropna()
+    retorno_esperado_ativos = (retornos_ativos.mean() + 1) ** 252 - 1       
+    retorno_esperado_benchmark = (retornos_benchmark.mean() + 1) ** 252 - 1
+    variancia_benchmark = retornos_benchmark.var()
+    matriz_cov = retornos_ativos.cov() * 252
+    return retorno_esperado_ativos, matriz_cov, retorno_esperado_benchmark, variancia_benchmark
 
-        submitted = st.form_submit_button("Confirmar")
-        
-    if submitted and tickers_input and benchmark_input and data_inicial and data_final:
-        try:
-            #Captura os precos dos ativos e do benchmark
-            dados_ativos, dados_benchmark = obter_dados_ativos(
-                tickers_input,
-                benchmark_input,
-                start=data_inicial,
-                end=data_final
-            )
-            
-            #Calcula os retornos esperados e a covariância
-            retorno_esperado_ativos, matriz_cov, retorno_esperado_benchmark, variancia_benchmark = calcular_retornos((dados_ativos, dados_benchmark))
-            
-            # Calcular fronteira eficiente
-            retornos_alvo, volatilidades, pesos = fronteira_eficiente(retorno_esperado_ativos, matriz_cov)
+def calcular_variancia(pesos, matriz_cov):
+    """
+    Calcula a variância do portfólio.
+    """
+    return np.dot(pesos.T, np.dot(matriz_cov, pesos))
 
-            # Otimizar portfólio de máxima Sharpe
-            pesos_max_sharpe = otimizar_sharpe_ratio(retorno_esperado_ativos, matriz_cov, taxa_livre_risco)
+def calcular_retorno_portfolio(pesos, retorno_esperado_ativos):
+    """
+    Calcula o retorno esperado do portfólio.
+    """
+    return np.dot(pesos, retorno_esperado_ativos)
 
-            # Armazenando os dados no session_state
-            st.session_state.dados_ativos = dados_ativos  # Novo: armazenar dados brutos
-            st.session_state.dados_benchmark = dados_benchmark  # Novo: armazenar dados brutos
-            st.session_state.retorno_esperado_benchmark = retorno_esperado_benchmark
-            st.session_state.variancia_benchmark = variancia_benchmark
-            st.session_state.matriz_cov = matriz_cov
-            st.session_state.retorno_esperado_ativos = retorno_esperado_ativos
-            st.session_state.retornos_alvo = retornos_alvo
-            st.session_state.volatilidades = volatilidades
-            st.session_state.pesos = pesos
-            st.session_state.pesos_max_sharpe = pesos_max_sharpe
-            st.session_state.tickers_lista = tickers_input.replace(' ', '').split(',')
-            st.success('Dados obtidos com sucesso!')
+def calcular_sharpe_ratio(pesos, retorno_esperado_ativos, matriz_cov, taxa_livre_risco):
+    """
+    Calcula o Índice de Sharpe do portfólio.
+    """
+    retorno_portfolio = calcular_retorno_portfolio(pesos, retorno_esperado_ativos)
+    volatilidade_portfolio = np.sqrt(calcular_variancia(pesos, matriz_cov))
+    return (retorno_portfolio - taxa_livre_risco) / volatilidade_portfolio
 
-        except Exception as e:
-            st.error(f'Erro ao obter dados: {str(e)}')
+def otimizar_portfolio(retorno_alvo, retorno_esperado_ativos, matriz_cov):
+    """
+    Otimiza os pesos para mínimo risco dado um retorno alvo.
+    """
+    n_ativos = len(retorno_esperado_ativos)
+    args = (matriz_cov,)
+    constraints = (
+        {'type': 'eq', 'fun': lambda x: np.sum(x) - 1},
+        {'type': 'eq', 'fun': lambda x: calcular_retorno_portfolio(x, retorno_esperado_ativos) - retorno_alvo}
+    )
+    bounds = tuple((0, 1) for _ in range(n_ativos))
+    resultado = minimize(calcular_variancia, n_ativos * [1/n_ativos], args=args,
+                        method='SLSQP', bounds=bounds, constraints=constraints)
+    return resultado.x
 
-with col1:
-    if st.session_state.retornos_alvo is not None:
-        st.subheader('FRONTEIRA EFICIENTE')
-        
-        # Encontrando o portfólio de mínima variância
-        volatilidades_series = pd.Series(st.session_state.volatilidades)
-        idx_min_vol = volatilidades_series.argmin()
-        retorno_min_vol = st.session_state.retornos_alvo[idx_min_vol]
-        
-        # Criando o seletor de pontos
-        ponto_index = st.slider('Selecione um ponto na fronteira eficiente', 
-                              0, 
-                              len(st.session_state.volatilidades)-1, 
-                              idx_min_vol)
-        st.session_state.ponto_selecionado = ponto_index
-        
-        fig = go.Figure()
+def otimizar_sharpe_ratio(retorno_esperado_ativos, matriz_cov, taxa_livre_risco):
+    """
+    Otimiza os pesos para máximo Índice de Sharpe.
+    """
+    n_ativos = len(retorno_esperado_ativos)
+    args = (retorno_esperado_ativos, matriz_cov, taxa_livre_risco)
+    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+    bounds = tuple((0, 1) for _ in range(n_ativos))
+    resultado = minimize(lambda x: -calcular_sharpe_ratio(x, *args), n_ativos * [1/n_ativos],
+                        method='SLSQP', bounds=bounds, constraints=constraints)
+    return resultado.x
 
-        # Adicionando a linha da fronteira eficiente
-        fig.add_trace(go.Scatter(
-            x=st.session_state.volatilidades,
-            y=np.array(st.session_state.retornos_alvo)*100,
-            mode='lines+markers',
-            name='Fronteira Eficiente'
-        ))
+def fronteira_eficiente(retorno_esperado_ativos, matriz_cov, n_pontos=100):
+    """
+    Gera pontos da fronteira eficiente.
+    """
+    retornos_alvo = np.linspace(retorno_esperado_ativos.min(), retorno_esperado_ativos.max(), n_pontos)
+    volatilidades = []
+    pesos = []
 
-        # Ponto selecionado
-        fig.add_trace(go.Scatter(
-            x=[st.session_state.volatilidades[ponto_index]],
-            y=[st.session_state.retornos_alvo[ponto_index]*100],
-            mode='markers',
-            name='Ponto Selecionado',
-            marker=dict(color='blue', size=15)
-        ))
+    for retorno in retornos_alvo:
+        peso = otimizar_portfolio(retorno, retorno_esperado_ativos, matriz_cov)
+        pesos.append(peso)
+        volatilidades.append(np.sqrt(calcular_variancia(peso, matriz_cov)))
 
-        # Portfólio de mínima variância
-        fig.add_trace(go.Scatter(
-            x=[st.session_state.volatilidades[idx_min_vol]], 
-            y=[st.session_state.retornos_alvo[idx_min_vol]*100], 
-            mode='markers', 
-            name='Portfólio de Mínima Variância', 
-            marker=dict(color='green', size=10)
-        ))
+    return retornos_alvo, volatilidades, np.array(pesos)
 
-        # Portfólio de máxima Sharpe
-        retorno_max_sharpe = calcular_retorno_portfolio(st.session_state.pesos_max_sharpe, st.session_state.retorno_esperado_ativos)
-        volatilidade_max_sharpe = np.sqrt(calcular_variancia(st.session_state.pesos_max_sharpe, st.session_state.matriz_cov))
-        
-        fig.add_trace(go.Scatter(
-            x=[volatilidade_max_sharpe], 
-            y=[retorno_max_sharpe*100], 
-            mode='markers', 
-            name='Portfólio de Máxima Sharpe', 
-            marker=dict(color='red', size=10)
-        ))
+def plotar_fronteira_interativa(retornos_alvo, volatilidades, retorno_esperado_ativos, matriz_cov, pesos_max_sharpe, taxa_livre_risco):
+    """
+    Plota a fronteira eficiente de forma interativa com Plotly.
+    """
+    # Cálculo do portfólio de máxima Sharpe
+    retorno_max_sharpe = calcular_retorno_portfolio(pesos_max_sharpe, retorno_esperado_ativos)
+    volatilidade_max_sharpe = np.sqrt(calcular_variancia(pesos_max_sharpe, matriz_cov))
 
-        # Benchmark
-        volatilidade_benchmark = np.sqrt(st.session_state.variancia_benchmark[0])
-        fig.add_trace(go.Scatter(
-            x=[volatilidade_benchmark], 
-            y=[st.session_state.retorno_esperado_benchmark[0]*100], 
-            mode='markers', 
-            name='Benchmark', 
-            marker=dict(color='yellow', size=10)
-        ))
+    # Criação do gráfico
+    fig = go.Figure()
 
-        fig.update_layout(
-            title='Fronteira Eficiente', 
-            xaxis_title='Volatilidade', 
-            yaxis_title='Retorno Esperado (%)'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
+    # Fronteira Eficiente
+    fig.add_trace(go.Scatter(
+        x=volatilidades,
+        y=retornos_alvo,
+        mode='lines+markers',
+        name='Fronteira Eficiente',
+        line=dict(color='blue', width=2),
+        marker=dict(size=5),
+        hovertemplate="<b>Volatilidade:</b> %{x:.2%}<br><b>Retorno:</b> %{y:.2%}<extra></extra>"
+    ))
 
-with col2:
-    if st.session_state.pesos is not None and st.session_state.ponto_selecionado is not None:
-        st.subheader('PESOS DO PORTFÓLIO SELECIONADO')
-        
-        # Usando os pesos do ponto selecionado
-        pesos_mostrar = st.session_state.pesos[st.session_state.ponto_selecionado]
-        
-        # Filtrando valores menores que 1%
-        pesos_percentual = pesos_mostrar * 100
-        indices_significativos = pesos_percentual >= 1.0
-        
-        # Se houver valores pequenos, somá-los em 'Outros'
-        if any(~indices_significativos):
-            labels = []
-            valores = []
-            for ticker, peso, significativo in zip(st.session_state.tickers_lista, pesos_percentual, indices_significativos):
-                if significativo:
-                    labels.append(ticker)
-                    valores.append(peso)
-            
-            # Adiciona a categoria 'Outros'
-            labels.append('Outros')
-            valores.append(sum(pesos_percentual[~indices_significativos]))
-        else:
-            labels = st.session_state.tickers_lista
-            valores = pesos_percentual
+    # Portfólio de Mínima Variância
+    idx_min_var = np.argmin(volatilidades)
+    fig.add_trace(go.Scatter(
+        x=[volatilidades[idx_min_var]],
+        y=[retornos_alvo[idx_min_var]],
+        mode='markers',
+        name='Mínima Variância',
+        marker=dict(color='green', size=12, symbol='star'),
+        hovertemplate="<b>Mínima Variância</b><br>Volatilidade: %{x:.2%}<br>Retorno: %{y:.2%}<extra></extra>"
+    ))
 
-        fig_pie = go.Figure()
-        fig_pie.add_trace(go.Pie(
-            labels=labels,
-            values=valores,
-            textinfo='label+percent',
-            hovertemplate="Ticker: %{label}<br>Peso: %{value:.1f}%<extra></extra>",
-            sort=True,
-            direction='clockwise',
-            pull=[0.1 if v >= 1 else 0 for v in valores]
-        ))
-        
-        fig_pie.update_layout(
-            title='Distribuição dos Pesos (%)',
-            showlegend=True
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-        
-        # Novo gráfico de rentabilidade ao longo do tempo
-        st.subheader('RENTABILIDADE DAS AÇÕES AO LONGO DO TEMPO')
-        
-        # Calcular retornos acumulados
-        retornos_acumulados = (1 + st.session_state.dados_ativos.pct_change()).cumprod() - 1
-        retornos_acumulados_benchmark = (1 + st.session_state.dados_benchmark.pct_change()).cumprod() - 1
-        
-        fig_retornos = go.Figure()
-        
-        # Adicionar cada ativo
-        for ticker in st.session_state.tickers_lista:
-            fig_retornos.add_trace(go.Scatter(
-                x=retornos_acumulados.index,
-                y=retornos_acumulados[ticker] * 100,
-                mode='lines',
-                name=ticker
-            ))
-        
-        # Adicionar benchmark
-        fig_retornos.add_trace(go.Scatter(
-            x=retornos_acumulados_benchmark.index,
-            y=retornos_acumulados_benchmark.iloc[:, 0] * 100,
-            mode='lines',
-            name=f'Benchmark ({benchmark_input})',
-            line=dict(color='black', dash='dash')
-        ))
-        
-        fig_retornos.update_layout(
-            title='Retorno Acumulado (%)',
-            xaxis_title='Data',
-            yaxis_title='Retorno Acumulado (%)',
-            hovermode='x unified'
-        )
-        
-        st.plotly_chart(fig_retornos, use_container_width=True)
+    # benchmark
+    fig.add_trace(go.Scatter(
+        x=[variancia_benchmark],
+        y=[retorno_esperado_benchmark],
+        mode='markers',
+        name='benchmark',
+        marker=dict(color='black', size=12, symbol='star'),
+        hovertemplate="<b>benchmark</b><br>Volatilidade: %{x:.2%}<br>Retorno: %{y:.2%}<extra></extra>"
+    ))
+
+    # Portfólio de Máximo Sharpe
+    fig.add_trace(go.Scatter(
+        x=[volatilidade_max_sharpe],
+        y=[retorno_max_sharpe],
+        mode='markers',
+        name='Máximo Sharpe',
+        marker=dict(color='red', size=12, symbol='star'),
+        hovertemplate="<b>Máximo Sharpe</b><br>Volatilidade: %{x:.2%}<br>Retorno: %{y:.2%}<extra></extra>"
+    ))
+
+    # Layout do gráfico
+    fig.update_layout(
+        title="Fronteira Eficiente de Markowitz",
+        xaxis_title="Volatilidade (Risco)",
+        yaxis_title="Retorno anualizado Esperado",
+        hovermode="x unified",
+        template="plotly_white",
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+
+    # Exibir o gráfico
+    fig.show()
+
+if __name__ == "__main__":
+
+    # Entrada de dados do usuário
+    tickers = input("Digite os tickers dos ativos (separados por vírgula)\n").upper().strip('')
+    benchmark = input("Digite o benchmark\n").upper().strip('')
+    start = input("Digite a data de inicio do periodo (Formato YYYY-MM-DD): ").upper().strip('')
+    end = input("Digite a data de fim do periodo (Formato YYYY-MM-DD): ").upper().strip('')
+    taxa_livre_risco = float(input("Digite a taxa livre de risco anual (em decimal, ex: 0.03 para 3%): "))
+
+    # Obter e processar dados
+    dados = obter_dados_ativos(tickers, benchmark)
+    retorno_esperado_ativos, matriz_cov, retorno_esperado_benchmark, variancia_benchmark = calcular_retornos(dados)
+
+    # Calcular fronteira eficiente
+    retornos_alvo, volatilidades, pesos = fronteira_eficiente(retorno_esperado_ativos, matriz_cov)
+
+    # Otimizar portfólio de máxima Sharpe
+    pesos_max_sharpe = otimizar_sharpe_ratio(retorno_esperado_ativos, matriz_cov, taxa_livre_risco)
+
+    # Plotar gráfico interativo
+    plotar_fronteira_interativa(retornos_alvo, volatilidades, retorno_esperado_ativos, matriz_cov, pesos_max_sharpe, taxa_livre_risco) 
+    
