@@ -4,36 +4,56 @@ import yfinance as yf
 from scipy.optimize import minimize
 
 def obter_dados_ativos(tickers, benchmark, start=None, end=None):
-    """Obtém dados históricos com tratamento robusto de erros"""
+    """Obtém dados históricos com fallback para Close se Adj Close não existir"""
     try:
-        # Obter dados dos ativos
-        dados_ativos = yf.download(
-            tickers=tickers,
+        # Converter para lista se for string
+        tickers_list = tickers.split(',') if isinstance(tickers, str) else tickers
+        
+        # Verificar tickers válidos
+        if not tickers_list or not all(t.strip() for t in tickers_list):
+            raise ValueError("Lista de tickers inválida")
+
+        # Baixar dados com tratamento robusto
+        dados = yf.download(
+            tickers=tickers_list,
             start=start,
             end=end,
+            group_by='ticker',
             progress=False,
-            group_by='ticker'
+            threads=True
         )
         
-        # Obter dados do benchmark
-        dados_bench = yf.download(
+        # Tentar obter benchmark
+        bench = yf.download(
             tickers=benchmark,
             start=start,
             end=end,
             progress=False
         )
-        
-        # Extrair preços ajustados
-        def extract_adj_close(data):
-            if isinstance(data.columns, pd.MultiIndex):
-                return data.xs('Adj Close', axis=1, level=1).dropna()
-            return data['Adj Close'].dropna() if 'Adj Close' in data.columns else data['Close'].dropna()
-        
-        return extract_adj_close(dados_ativos), extract_adj_close(dados_bench)
+
+        # Função para extrair preços com fallback
+        def extrair_precos(df):
+            if isinstance(df.columns, pd.MultiIndex):
+                if 'Adj Close' in df.columns.get_level_values(1):
+                    return df.xs('Adj Close', axis=1, level=1).dropna()
+                return df.xs('Close', axis=1, level=1).dropna()
+            return df['Adj Close'].dropna() if 'Adj Close' in df.columns else df['Close'].dropna()
+
+        return extrair_precos(dados), extrair_precos(bench)
         
     except Exception as e:
-        raise ValueError(f"Erro ao obter dados: {str(e)}")
-
+        raise ValueError(f"""
+        Falha ao obter dados:
+        - Tickers: {tickers}
+        - Benchmark: {benchmark}
+        Causa: {str(e)}
+        
+        Soluções:
+        1. Verifique se os tickers existem (ex: PETR4.SA para Petrobras)
+        2. Para ações internacionais, use o código correto (ex: AAPL)
+        3. Tickers brasileiros precisam do sufixo .SA
+        4. Verifique se o benchmark está correto (ex: ^BVSP para Ibovespa)
+        """)
 def calcular_retornos(dados):
     """Calcula retornos anuais e matriz de covariância"""
     retornos_ativos = dados[0].pct_change().dropna()
