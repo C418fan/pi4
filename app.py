@@ -199,3 +199,61 @@ with col2:
             showlegend=True
         )
         st.plotly_chart(fig_pie, use_container_width=True)
+
+
+# Gráfico de performance histórica (Versão Aprimorada)
+if st.session_state.dados_ativos is not None:
+    st.subheader('EVOLUÇÃO DA RENTABILIDADE')
+    
+    # Calcular retorno acumulado em porcentagem
+    retornos_acumulados = (1 + st.session_state.dados_ativos.pct_change()).cumprod() * 100
+    retorno_bench_acumulado = (1 + st.session_state.dados_benchmark.pct_change()).cumprod() * 100
+    
+    fig = go.Figure()
+    
+    # Adicionar cada ativo
+    for ativo in retornos_acumulados.columns:
+        fig.add_trace(go.Scatter(
+            x=retornos_acumulados.index,
+            y=retornos_acumulados[ativo],
+            mode='lines',
+            name=ativo,
+            hovertemplate=(
+                "<b>%{fullData.name}</b><br>"
+                "Data: %{x|%d/%m/%Y}<br>"
+                "Rentabilidade: %{y:.2f}%<br>"
+                "<extra></extra>"
+            )
+        ))
+    
+    # Adicionar benchmark
+    fig.add_trace(go.Scatter(
+        x=retorno_bench_acumulado.index,
+        y=retorno_bench_acumulado,
+        mode='lines',
+        name=f'Benchmark ({benchmark_input})',
+        line=dict(color='black', width=2, dash='dash'),
+        hovertemplate="Benchmark: %{y:.2f}%<extra></extra>"
+    ))
+    
+    # Configurações do layout
+    fig.update_layout(
+        title='Rentabilidade Acumulada das Ações',
+        xaxis_title='Data',
+        yaxis_title='Rentabilidade Acumulada (%)',
+        hovermode='x unified',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        ),
+        template='plotly_white',
+        height=600
+    )
+    
+    # Adicionar linha horizontal no 100% (ponto de partida)
+    fig.add_hline(y=100, line_dash="dot", line_color="grey")
+    
+    st.plotly_chart(fig, use_container_width=True)
