@@ -199,3 +199,39 @@ with col2:
             showlegend=True
         )
         st.plotly_chart(fig_pie, use_container_width=True)
+
+with sidebar:
+    with st.form("inputs"):
+        tickers_input = st.text_input('Tickers (ex: PETR4.SA,VALE3.SA,ITUB4.SA)', 'PETR4.SA,VALE3.SA')
+        benchmark_input = st.text_input('Benchmark (ex: ^BVSP para Ibovespa)', '^BVSP')
+        [... outros inputs ...]
+        
+    if submitted:
+        try:
+            with st.spinner('Obtendo dados...'):
+                # Verificação preliminar
+                if not tickers_input or not benchmark_input:
+                    raise ValueError("Preencha todos os campos de tickers")
+                
+                # Obter dados
+                dados_ativos, dados_benchmark = obter_dados_ativos(
+                    tickers=tickers_input,
+                    benchmark=benchmark_input,
+                    start=data_inicial,
+                    end=data_final
+                )
+                
+                # Verificar dados vazios
+                if dados_ativos.empty or dados_benchmark.empty:
+                    raise ValueError("""
+                    Nenhum dado encontrado. Verifique:
+                    1. Tickers escritos corretamente (ex: PETR4.SA)
+                    2. Benchmark existente (ex: ^BVSP)
+                    3. Período com dados disponíveis
+                    """)
+                
+                [... restante do processamento ...]
+                
+        except Exception as e:
+            st.error(str(e))
+            st.stop()  # Interrompe a execução se houver erro
