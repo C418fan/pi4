@@ -188,8 +188,7 @@ with sidebar:
     with st.form("inputs"):
         tickers_input = st.text_input('Tickers (ex: PETR4.SA,VALE3.SA,ITUB4.SA)', 'PETR4.SA,VALE3.SA')
         benchmark_input = st.text_input('Benchmark (ex: ^BVSP para Ibovespa)', '^BVSP')
-        [... outros inputs ...]
-        
+
     if submitted:
         try:
             with st.spinner('Obtendo dados...'):
@@ -207,8 +206,7 @@ with sidebar:
                 # Verifica se obteve dados
                 if dados_ativos.empty or dados_benchmark.empty:
                     raise ValueError("Nenhum dado encontrado - verifique tickers e período")
-                
-                [... restante do processamento ...]
+
                 
         except Exception as e:
             st.error(f"""
