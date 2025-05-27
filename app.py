@@ -183,3 +183,42 @@ with col2:
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         st.plotly_chart(fig_hist, use_container_width=True)
+
+with sidebar:
+    with st.form("inputs"):
+        tickers_input = st.text_input('Tickers (ex: PETR4.SA,VALE3.SA,ITUB4.SA)', 'PETR4.SA,VALE3.SA')
+        benchmark_input = st.text_input('Benchmark (ex: ^BVSP para Ibovespa)', '^BVSP')
+        [... outros inputs ...]
+        
+    if submitted:
+        try:
+            with st.spinner('Obtendo dados...'):
+                # Verifica tickers antes de baixar
+                if not tickers_input or not benchmark_input:
+                    raise ValueError("Preencha todos os campos de tickers")
+                
+                dados_ativos, dados_benchmark = obter_dados_ativos(
+                    tickers=tickers_input,
+                    benchmark=benchmark_input,
+                    start=data_inicial,
+                    end=data_final
+                )
+                
+                # Verifica se obteve dados
+                if dados_ativos.empty or dados_benchmark.empty:
+                    raise ValueError("Nenhum dado encontrado - verifique tickers e período")
+                
+                [... restante do processamento ...]
+                
+        except Exception as e:
+            st.error(f"""
+            Falha ao obter dados:
+            {str(e)}
+            
+            Soluções:
+            1. Verifique os tickers (ex: PETR4.SA para Petrobras)
+            2. Confira o benchmark (ex: ^BVSP para Ibovespa)
+            3. Tente um período diferente
+            4. Tickers internacionais precisam de sufixo (ex: AAPL para Apple)
+            """)
+            st.stop()
