@@ -189,56 +189,13 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
     st.plotly_chart(fig_ret_base100, use_container_width=True)
 
 
-#SEGUNDO GRÁFICO FINAL!!
-
-with col3:
-    if st.session_state.pesos is not None and st.session_state.ponto_selecionado is not None:
-        st.subheader('PESOS DO PORTFÓLIO SELECIONADO')
-
-        pesos_mostrar = st.session_state.pesos[st.session_state.ponto_selecionado]
-        pesos_percentual = pesos_mostrar * 100
-        indices_significativos = pesos_percentual >= 1.0
-
-        if any(~indices_significativos):
-            labels = []
-            valores = []
-            for ticker, peso, significativo in zip(st.session_state.tickers_lista, pesos_percentual, indices_significativos):
-                if significativo:
-                    labels.append(ticker)
-                    valores.append(peso)
-            labels.append('Outros')
-            valores.append(sum(pesos_percentual[~indices_significativos]))
-        else:
-            labels = st.session_state.tickers_lista
-            valores = pesos_percentual
-
-        fig_pie = go.Figure()
-        fig_pie.add_trace(go.Pie(
-            labels=labels,
-            values=valores,
-            textinfo='label+percent',
-            hovertemplate="Ticker: %{label}<br>Peso: %{value:.1f}%<extra></extra>",
-            sort=True,
-            direction='clockwise',
-            pull=[0.1 if v >= 1 else 0 for v in valores],
-            marker=dict(colors=[st.session_state.cores_por_ticker.get(label, '#CCCCCC') for label in labels])
-        ))
-
-        fig_pie.update_layout(
-            title='Distribuição dos Pesos (%)',
-            showlegend=True
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-if st.session_state.dados_ativos is not None and st.session_state.dados_benchmark is not None:
+# REMOVE o benchmark do gráfico de rentabilidade acumulada original
+if st.session_state.dados_ativos is not None:
     st.subheader('RENTABILIDADE DAS AÇÕES AO LONGO DO TEMPO')
 
-    # Normalizar os preços para começarem em 100
     precos_normalizados = st.session_state.dados_ativos / st.session_state.dados_ativos.iloc[0] * 100
-    benchmark_normalizado = st.session_state.dados_benchmark / st.session_state.dados_benchmark.iloc[0] * 100
 
     fig_ret_base100 = go.Figure()
-
     for ticker in st.session_state.tickers_lista:
         fig_ret_base100.add_trace(go.Scatter(
             x=precos_normalizados.index,
@@ -248,19 +205,52 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
             line=dict(color=st.session_state.get('cores_por_ticker', {}).get(ticker, None))
         ))
 
-    fig_ret_base100.add_trace(go.Scatter(
-        x=benchmark_normalizado.index,
-        y=benchmark_normalizado.iloc[:, 0],
-        mode='lines',
-        name=f'Benchmark ({benchmark_input})',
-        line=dict(color='black', dash='dash')
-    ))
-
     fig_ret_base100.update_layout(
-        title='Rentabilidade Acumulada com Base 100',
+        title='Rentabilidade Acumulada com Base 100 (Sem Benchmark)',
         xaxis_title='Data',
         yaxis_title='Valor Normalizado (Base = 100)',
         hovermode='x unified'
     )
 
     st.plotly_chart(fig_ret_base100, use_container_width=True)
+
+# NOVO GRÁFICO: Comparação entre o índice da carteira e o benchmark (ambos base 100)
+if st.session_state.dados_ativos is not None and st.session_state.dados_benchmark is not None and st.session_state.ponto_selecionado is not None:
+    st.subheader('COMPARAÇÃO: ÍNDICE DA CARTEIRA vs IBOVESPA (Base 100)')
+
+    # Normalizar benchmark para base 100
+    benchmark_normalizado = st.session_state.dados_benchmark / st.session_state.dados_benchmark.iloc[0] * 100
+    benchmark_series = benchmark_normalizado.iloc[:, 0]
+
+    # Calcular o índice da carteira com base nos pesos selecionados
+    pesos = st.session_state.pesos[st.session_state.ponto_selecionado]
+    dados_ativos = st.session_state.dados_ativos
+
+    # Multiplicação dos preços normalizados pelos pesos dos ativos
+    carteira_normalizada = (dados_ativos / dados_ativos.iloc[0]) @ pesos * 100
+
+    fig_comparacao = go.Figure()
+    fig_comparacao.add_trace(go.Scatter(
+        x=carteira_normalizada.index,
+        y=carteira_normalizada,
+        mode='lines',
+        name='Índice da Carteira',
+        line=dict(color='green')
+    ))
+
+    fig_comparacao.add_trace(go.Scatter(
+        x=benchmark_series.index,
+        y=benchmark_series,
+        mode='lines',
+        name='IBOVESPA',
+        line=dict(color='black', dash='dash')
+    ))
+
+    fig_comparacao.update_layout(
+        title='Índice da Carteira vs IBOVESPA (Base 100)',
+        xaxis_title='Data',
+        yaxis_title='Valor Normalizado (Base = 100)',
+        hovermode='x unified'
+    )
+
+    st.plotly_chart(fig_comparacao, use_container_width=True)
