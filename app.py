@@ -1,3 +1,4 @@
+Você disse:
 import streamlit as st
 from datetime import datetime
 import plotly.graph_objects as go
@@ -160,37 +161,43 @@ with col2:
         )
         st.plotly_chart(fig_pie, use_container_width=True)
 
-# Normalizar benchmark para base 100
+# NOVO GRÁFICO: Comparação entre o índice da carteira e o benchmark (ambos base 100)
+if st.session_state.dados_ativos is not None and st.session_state.dados_benchmark is not None and st.session_state.ponto_selecionado is not None:
+    st.subheader('COMPARAÇÃO: ÍNDICE DA CARTEIRA vs IBOVESPA (Base 100)')
+
+    # Normalizar benchmark para base 100
     benchmark_normalizado = st.session_state.dados_benchmark / st.session_state.dados_benchmark.iloc[0] * 100
+    benchmark_series = benchmark_normalizado.iloc[:, 0]
 
-    # Pegamos os pesos do ponto selecionado na fronteira eficiente
+    # Calcular o índice da carteira com base nos pesos selecionados
     pesos = st.session_state.pesos[st.session_state.ponto_selecionado]
+    dados_ativos = st.session_state.dados_ativos
 
-    # Criamos uma série onde cada linha representa a soma dos pesos multiplicando o mesmo valor (benchmark)
-    benchmark_simulado = benchmark_normalizado.iloc[:, 0].apply(lambda x: np.sum(pesos * x))
+    # Multiplicação dos preços normalizados pelos pesos dos ativos
+    carteira_normalizada = (dados_ativos / dados_ativos.iloc[0]) @ pesos * 100
 
-    fig_simulacao = go.Figure()
-    fig_simulacao.add_trace(go.Scatter(
-        x=benchmark_simulado.index,
-        y=benchmark_simulado,
+    fig_comparacao = go.Figure()
+    fig_comparacao.add_trace(go.Scatter(
+        x=carteira_normalizada.index,
+        y=carteira_normalizada,
         mode='lines',
-        name='Simulação do Portfólio com IBOVESPA',
-        line=dict(color='orange')
+        name='Índice da Carteira',
+        line=dict(color='green')
     ))
 
-    fig_simulacao.add_trace(go.Scatter(
-        x=benchmark_normalizado.index,
-        y=benchmark_normalizado.iloc[:, 0],
+    fig_comparacao.add_trace(go.Scatter(
+        x=benchmark_series.index,
+        y=benchmark_series,
         mode='lines',
-        name='IBOVESPA Original',
-        line=dict(color='gray', dash='dot')
+        name='IBOVESPA',
+        line=dict(color='black', dash='dash')
     ))
 
-    fig_simulacao.update_layout(
-        title='IBOVESPA Ponderado pelos Pesos do Portfólio (Base 100)',
+    fig_comparacao.update_layout(
+        title='Índice da Carteira vs IBOVESPA (Base 100)',
         xaxis_title='Data',
         yaxis_title='Valor Normalizado (Base = 100)',
         hovermode='x unified'
     )
 
-    st.plotly_chart(fig_simulacao, use_container_width=True)
+    st.plotly_chart(fig_comparacao, use_container_width=True)
