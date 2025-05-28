@@ -206,3 +206,41 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
 
 
 #-------#
+# NOVO GRÁFICO: Simulação da carteira se todos os ativos seguissem o IBOVESPA (ponderado pelos pesos atuais)
+if st.session_state.dados_benchmark is not None and st.session_state.ponto_selecionado is not None:
+    st.subheader('SIMULAÇÃO: IBOVESPA PONDERADO PELOS PESOS DO PORTFÓLIO (Base 100)')
+
+    # Normalizar benchmark para base 100
+    benchmark_normalizado = st.session_state.dados_benchmark / st.session_state.dados_benchmark.iloc[0] * 100
+
+    # Pegamos os pesos do ponto selecionado na fronteira eficiente
+    pesos = st.session_state.pesos[st.session_state.ponto_selecionado]
+
+    # Criamos uma série onde cada linha representa a soma dos pesos multiplicando o mesmo valor (benchmark)
+    benchmark_simulado = benchmark_normalizado.iloc[:, 0].apply(lambda x: np.sum(pesos * x))
+
+    fig_simulacao = go.Figure()
+    fig_simulacao.add_trace(go.Scatter(
+        x=benchmark_simulado.index,
+        y=benchmark_simulado,
+        mode='lines',
+        name='Simulação do Portfólio com IBOVESPA',
+        line=dict(color='orange')
+    ))
+
+    fig_simulacao.add_trace(go.Scatter(
+        x=benchmark_normalizado.index,
+        y=benchmark_normalizado.iloc[:, 0],
+        mode='lines',
+        name='IBOVESPA Original',
+        line=dict(color='gray', dash='dot')
+    ))
+
+    fig_simulacao.update_layout(
+        title='IBOVESPA Ponderado pelos Pesos do Portfólio (Base 100)',
+        xaxis_title='Data',
+        yaxis_title='Valor Normalizado (Base = 100)',
+        hovermode='x unified'
+    )
+
+    st.plotly_chart(fig_simulacao, use_container_width=True)
