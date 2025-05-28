@@ -160,38 +160,40 @@ with col2:
         )
         st.plotly_chart(fig_pie, use_container_width=True)
 
-# NOVO BLOCO - Gráfico de rentabilidade acumulada
+
+
+# Gráfico final: Rentabilidade acumulada com base 100
 if st.session_state.dados_ativos is not None and st.session_state.dados_benchmark is not None:
     st.subheader('RENTABILIDADE DAS AÇÕES AO LONGO DO TEMPO')
 
-    retornos_acumulados = (1 + st.session_state.dados_ativos.pct_change()).cumprod()
-    retornos_acumulados_benchmark = (1 + st.session_state.dados_benchmark.pct_change()).cumprod()
+    # Normalizar os preços para começarem em 100
+    precos_normalizados = st.session_state.dados_ativos / st.session_state.dados_ativos.iloc[0] * 100
+    benchmark_normalizado = st.session_state.dados_benchmark / st.session_state.dados_benchmark.iloc[0] * 100
 
-    fig_ret_acumulada = go.Figure()
+    fig_ret_base100 = go.Figure()
 
     for ticker in st.session_state.tickers_lista:
-        fig_ret_acumulada.add_trace(go.Scatter(
-            x=retornos_acumulados.index,
-            y=retornos_acumulados[ticker],
+        fig_ret_base100.add_trace(go.Scatter(
+            x=precos_normalizados.index,
+            y=precos_normalizados[ticker],
             mode='lines',
             name=ticker,
-            line=dict(color=st.session_state.cores_por_ticker.get(ticker, None))
+            line=dict(color=st.session_state.get('cores_por_ticker', {}).get(ticker, None))
         ))
 
-    fig_ret_acumulada.add_trace(go.Scatter(
-        x=retornos_acumulados_benchmark.index,
-        y=retornos_acumulados_benchmark.iloc[:, 0],
+    fig_ret_base100.add_trace(go.Scatter(
+        x=benchmark_normalizado.index,
+        y=benchmark_normalizado.iloc[:, 0],
         mode='lines',
         name=f'Benchmark ({benchmark_input})',
         line=dict(color='black', dash='dash')
     ))
 
-    fig_ret_acumulada.update_layout(
-        title='Rentabilidade Acumulada (Escala Log)',
+    fig_ret_base100.update_layout(
+        title='Rentabilidade Acumulada com Base 100',
         xaxis_title='Data',
-        yaxis_title='Crescimento do Capital (x vezes)',
-        yaxis_type='log',
+        yaxis_title='Valor Normalizado (Base = 100)',
         hovermode='x unified'
     )
 
-    st.plotly_chart(fig_ret_acumulada, use_container_width=True)
+    st.plotly_chart(fig_ret_base100, use_container_width=True)
