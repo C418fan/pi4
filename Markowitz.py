@@ -6,19 +6,37 @@ from scipy.optimize import minimize
 import plotly.graph_objects as go
 
 
-def obter_dados_ativos(tickers, benchmark, start=None, end=None):
-    """
-    Obtém dados históricos de fechamento dos ativos e do benchmark usando Yahoo Finance.
-    
-    Parâmetros:
-    tickers (str ou list): Lista de tickers dos ativos
-    benchmark (str): Ticker do benchmark
-    start (str ou datetime, opcional): Data inicial para obtenção dos dados
-    end (str ou datetime, opcional): Data final para obtenção dos dados
-    """
-    dados = yf.download(tickers, start=start, end=end, auto_adjust=False)['Adj Close']
-    benchmark = yf.download(benchmark, start=start, end=end, auto_adjust=False)['Adj Close']
-    return dados.dropna(), benchmark.dropna()
+def obter_dados_ativos(tickers_str, benchmark, start, end):
+    tickers = tickers_str.replace(" ", "").split(",")
+
+    try:
+        # Baixar dados dos ativos com auto ajuste
+        dados = yf.download(tickers + [benchmark], start=start, end=end, auto_adjust=True, progress=False)
+
+        if dados.empty:
+            raise ValueError("Nenhum dado retornado pelo Yahoo Finance.")
+
+        # Extrair apenas a coluna 'Close' (funciona com múltiplos tickers e benchmark)
+        if isinstance(dados.columns, pd.MultiIndex) and 'Close' in dados.columns.levels[0]:
+            dados_close = dados['Close']
+        else:
+            raise ValueError("Coluna 'Close' não encontrada nos dados baixados.")
+
+        # Separar benchmark dos ativos
+        if benchmark not in dados_close.columns:
+            raise ValueError(f"Benchmark '{benchmark}' não encontrado nos dados.")
+        dados_benchmark = dados_close[[benchmark]]
+        dados_ativos = dados_close.drop(columns=[benchmark], errors='ignore')
+
+        if dados_ativos.empty:
+            raise ValueError("Nenhum dado de fechamento válido encontrado para os ativos.")
+        if dados_benchmark.empty:
+            raise ValueError("Nenhum dado de fechamento válido encontrado para o benchmark.")
+
+        return dados_ativos.dropna(), dados_benchmark.dropna()
+
+    except Exception as e:
+        raise Exception(f"Falha ao obter dados: - Tickers: {','.join(tickers)} - Benchmark: {benchmark} Causa: {str(e)}")
 
 def calcular_retornos(dados):
     """
