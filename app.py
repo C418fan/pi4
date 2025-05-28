@@ -3,7 +3,11 @@ from datetime import datetime
 import plotly.graph_objects as go
 import numpy as np
 import pandas as pd
-from Markowitz import obter_dados_ativos, calcular_retornos, calcular_variancia, calcular_retorno_portfolio, calcular_sharpe_ratio, otimizar_portfolio, otimizar_sharpe_ratio, fronteira_eficiente
+from Markowitz import (
+    obter_dados_ativos, calcular_retornos, calcular_variancia,
+    calcular_retorno_portfolio, calcular_sharpe_ratio,
+    otimizar_portfolio, otimizar_sharpe_ratio, fronteira_eficiente
+)
 
 # Inicialização de variáveis de estado
 for key in [
@@ -50,7 +54,7 @@ with sidebar:
             st.session_state.pesos_max_sharpe = pesos_max_sharpe
             st.session_state.tickers_lista = tickers_input.replace(' ', '').split(',')
 
-            # Definir cores padronizadas por ticker
+            # Paleta de cores por ticker
             cores_tickers = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
             st.session_state.cores_por_ticker = {
                 ticker: cor for ticker, cor in zip(st.session_state.tickers_lista, cores_tickers)
@@ -151,7 +155,9 @@ with col2:
             sort=True,
             direction='clockwise',
             pull=[0.1 if v >= 1 else 0 for v in valores],
-            marker=dict(colors=[st.session_state.cores_por_ticker.get(label, '#CCCCCC') for label in labels])
+            marker=dict(colors=[
+                st.session_state.get('cores_por_ticker', {}).get(label, '#CCCCCC') for label in labels
+            ])
         ))
 
         fig_pie.update_layout(
@@ -160,7 +166,7 @@ with col2:
         )
         st.plotly_chart(fig_pie, use_container_width=True)
 
-# NOVO BLOCO - Gráfico de rentabilidade acumulada
+# Gráfico final: Rentabilidade acumulada
 if st.session_state.dados_ativos is not None and st.session_state.dados_benchmark is not None:
     st.subheader('RENTABILIDADE DAS AÇÕES AO LONGO DO TEMPO')
 
@@ -175,7 +181,7 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
             y=retornos_acumulados[ticker],
             mode='lines',
             name=ticker,
-            line=dict(color=st.session_state.cores_por_ticker.get(ticker, None))
+            line=dict(color=st.session_state.get('cores_por_ticker', {}).get(ticker, None))
         ))
 
     fig_ret_acumulada.add_trace(go.Scatter(
