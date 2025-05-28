@@ -204,3 +204,5 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
 
     st.plotly_chart(fig_ret_base100, use_container_width=True)
 
+
+#-------#
