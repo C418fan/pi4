@@ -191,8 +191,44 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
 
 #SEGUNDO GRÁFICO FINAL!!
 
+with col3:
+    if st.session_state.pesos is not None and st.session_state.ponto_selecionado is not None:
+        st.subheader('PESOS DO PORTFÓLIO SELECIONADO')
 
+        pesos_mostrar = st.session_state.pesos[st.session_state.ponto_selecionado]
+        pesos_percentual = pesos_mostrar * 100
+        indices_significativos = pesos_percentual >= 1.0
 
+        if any(~indices_significativos):
+            labels = []
+            valores = []
+            for ticker, peso, significativo in zip(st.session_state.tickers_lista, pesos_percentual, indices_significativos):
+                if significativo:
+                    labels.append(ticker)
+                    valores.append(peso)
+            labels.append('Outros')
+            valores.append(sum(pesos_percentual[~indices_significativos]))
+        else:
+            labels = st.session_state.tickers_lista
+            valores = pesos_percentual
+
+        fig_pie = go.Figure()
+        fig_pie.add_trace(go.Pie(
+            labels=labels,
+            values=valores,
+            textinfo='label+percent',
+            hovertemplate="Ticker: %{label}<br>Peso: %{value:.1f}%<extra></extra>",
+            sort=True,
+            direction='clockwise',
+            pull=[0.1 if v >= 1 else 0 for v in valores],
+            marker=dict(colors=[st.session_state.cores_por_ticker.get(label, '#CCCCCC') for label in labels])
+        ))
+
+        fig_pie.update_layout(
+            title='Distribuição dos Pesos (%)',
+            showlegend=True
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
 
 if st.session_state.dados_ativos is not None and st.session_state.dados_benchmark is not None:
     st.subheader('RENTABILIDADE DAS AÇÕES AO LONGO DO TEMPO')
