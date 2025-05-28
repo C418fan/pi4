@@ -5,31 +5,15 @@ import numpy as np
 import pandas as pd
 from Markowitz import obter_dados_ativos, calcular_retornos, calcular_variancia, calcular_retorno_portfolio, calcular_sharpe_ratio, otimizar_portfolio, otimizar_sharpe_ratio, fronteira_eficiente
 
-# Variáveis de estado
-if 'retorno_esperado_benchmark' not in st.session_state:
-    st.session_state.retorno_esperado_benchmark = None
-if 'variancia_benchmark' not in st.session_state:
-    st.session_state.variancia_benchmark = None
-if 'retorno_esperado_ativos' not in st.session_state:
-    st.session_state.retorno_esperado_ativos = None
-if 'matriz_cov' not in st.session_state:
-    st.session_state.matriz_cov = None
-if 'retornos_alvo' not in st.session_state:
-    st.session_state.retornos_alvo = None
-if 'volatilidades' not in st.session_state:
-    st.session_state.volatilidades = None
-if 'pesos' not in st.session_state:
-    st.session_state.pesos = None
-if 'pesos_max_sharpe' not in st.session_state:
-    st.session_state.pesos_max_sharpe = None
-if 'ponto_selecionado' not in st.session_state:
-    st.session_state.ponto_selecionado = None
-if 'tickers_lista' not in st.session_state:
-    st.session_state.tickers_lista = None
-if 'dados_ativos' not in st.session_state:
-    st.session_state.dados_ativos = None
-if 'dados_benchmark' not in st.session_state:
-    st.session_state.dados_benchmark = None
+# Inicialização de variáveis de estado
+for key in [
+    'retorno_esperado_benchmark', 'variancia_benchmark', 'retorno_esperado_ativos',
+    'matriz_cov', 'retornos_alvo', 'volatilidades', 'pesos', 'pesos_max_sharpe',
+    'ponto_selecionado', 'tickers_lista', 'dados_ativos', 'dados_benchmark',
+    'cores_por_ticker'
+]:
+    if key not in st.session_state:
+        st.session_state[key] = None
 
 # Layout
 sidebar = st.sidebar
@@ -44,16 +28,12 @@ with sidebar:
         data_inicial = st.date_input("Data inicial", min_value=datetime(1988, 1, 1), max_value=datetime.now().date())
         data_final = st.date_input("Data final", min_value=datetime(1988, 1, 1), max_value=datetime.now().date())
         submitted = st.form_submit_button("Confirmar")
-        
+
     if submitted and tickers_input and benchmark_input and data_inicial and data_final:
         try:
             dados_ativos, dados_benchmark = obter_dados_ativos(
-                tickers_input,
-                benchmark_input,
-                start=data_inicial,
-                end=data_final
+                tickers_input, benchmark_input, start=data_inicial, end=data_final
             )
-            
             retorno_esperado_ativos, matriz_cov, retorno_esperado_benchmark, variancia_benchmark = calcular_retornos((dados_ativos, dados_benchmark))
             retornos_alvo, volatilidades, pesos = fronteira_eficiente(retorno_esperado_ativos, matriz_cov)
             pesos_max_sharpe = otimizar_sharpe_ratio(retorno_esperado_ativos, matriz_cov, taxa_livre_risco)
@@ -69,6 +49,13 @@ with sidebar:
             st.session_state.pesos = pesos
             st.session_state.pesos_max_sharpe = pesos_max_sharpe
             st.session_state.tickers_lista = tickers_input.replace(' ', '').split(',')
+
+            # Definir cores padronizadas por ticker
+            cores_tickers = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+            st.session_state.cores_por_ticker = {
+                ticker: cor for ticker, cor in zip(st.session_state.tickers_lista, cores_tickers)
+            }
+
             st.success('Dados obtidos com sucesso!')
         except Exception as e:
             st.error(f'Erro ao obter dados: {str(e)}')
@@ -163,7 +150,8 @@ with col2:
             hovertemplate="Ticker: %{label}<br>Peso: %{value:.1f}%<extra></extra>",
             sort=True,
             direction='clockwise',
-            pull=[0.1 if v >= 1 else 0 for v in valores]
+            pull=[0.1 if v >= 1 else 0 for v in valores],
+            marker=dict(colors=[st.session_state.cores_por_ticker.get(label, '#CCCCCC') for label in labels])
         ))
 
         fig_pie.update_layout(
@@ -186,7 +174,8 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
             x=retornos_acumulados.index,
             y=retornos_acumulados[ticker],
             mode='lines',
-            name=ticker
+            name=ticker,
+            line=dict(color=st.session_state.cores_por_ticker.get(ticker, None))
         ))
 
     fig_ret_acumulada.add_trace(go.Scatter(
@@ -206,4 +195,3 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
     )
 
     st.plotly_chart(fig_ret_acumulada, use_container_width=True)
-    #
