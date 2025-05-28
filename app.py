@@ -5,32 +5,17 @@ import numpy as np
 import pandas as pd
 from Markowitz import obter_dados_ativos, calcular_retornos, calcular_variancia, calcular_retorno_portfolio, calcular_sharpe_ratio, otimizar_portfolio, otimizar_sharpe_ratio, fronteira_eficiente
 
-# Variáveis de estado
-if 'retorno_esperado_benchmark' not in st.session_state:
-    st.session_state.retorno_esperado_benchmark = None
-if 'variancia_benchmark' not in st.session_state:
-    st.session_state.variancia_benchmark = None
-if 'retorno_esperado_ativos' not in st.session_state:
-    st.session_state.retorno_esperado_ativos = None
-if 'matriz_cov' not in st.session_state:
-    st.session_state.matriz_cov = None
-if 'retornos_alvo' not in st.session_state:
-    st.session_state.retornos_alvo = None
-if 'volatilidades' not in st.session_state:
-    st.session_state.volatilidades = None
-if 'pesos' not in st.session_state:
-    st.session_state.pesos = None
-if 'pesos_max_sharpe' not in st.session_state:
-    st.session_state.pesos_max_sharpe = None
-if 'ponto_selecionado' not in st.session_state:
-    st.session_state.ponto_selecionado = None
-if 'tickers_lista' not in st.session_state:
-    st.session_state.tickers_lista = None
-if 'dados_ativos' not in st.session_state:
-    st.session_state.dados_ativos = None
-if 'dados_benchmark' not in st.session_state:
-    st.session_state.dados_benchmark = None
+# Inicialização de variáveis de estado
+for key in [
+    'retorno_esperado_benchmark', 'variancia_benchmark', 'retorno_esperado_ativos',
+    'matriz_cov', 'retornos_alvo', 'volatilidades', 'pesos', 'pesos_max_sharpe',
+    'ponto_selecionado', 'tickers_lista', 'dados_ativos', 'dados_benchmark',
+    'cores_por_ticker'
+]:
+    if key not in st.session_state:
+        st.session_state[key] = None
 
+#Layout
 sidebar = st.sidebar
 col1 = st.container()
 col2 = st.container()
@@ -43,16 +28,12 @@ with sidebar:
         data_inicial = st.date_input("Data inicial", min_value=datetime(1988, 1, 1), max_value=datetime.now().date())
         data_final = st.date_input("Data final", min_value=datetime(1988, 1, 1), max_value=datetime.now().date())
         submitted = st.form_submit_button("Confirmar")
-        
+
     if submitted and tickers_input and benchmark_input and data_inicial and data_final:
         try:
             dados_ativos, dados_benchmark = obter_dados_ativos(
-                tickers_input,
-                benchmark_input,
-                start=data_inicial,
-                end=data_final
+                tickers_input, benchmark_input, start=data_inicial, end=data_final
             )
-            
             retorno_esperado_ativos, matriz_cov, retorno_esperado_benchmark, variancia_benchmark = calcular_retornos((dados_ativos, dados_benchmark))
             retornos_alvo, volatilidades, pesos = fronteira_eficiente(retorno_esperado_ativos, matriz_cov)
             pesos_max_sharpe = otimizar_sharpe_ratio(retorno_esperado_ativos, matriz_cov, taxa_livre_risco)
@@ -68,6 +49,13 @@ with sidebar:
             st.session_state.pesos = pesos
             st.session_state.pesos_max_sharpe = pesos_max_sharpe
             st.session_state.tickers_lista = tickers_input.replace(' ', '').split(',')
+
+            # Definir cores padronizadas por ticker
+            cores_tickers = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+            st.session_state.cores_por_ticker = {
+                ticker: cor for ticker, cor in zip(st.session_state.tickers_lista, cores_tickers)
+            }
+
             st.success('Dados obtidos com sucesso!')
         except Exception as e:
             st.error(f'Erro ao obter dados: {str(e)}')
@@ -81,16 +69,16 @@ with col1:
                                 0, len(st.session_state.volatilidades)-1, idx_min_vol)
         st.session_state.ponto_selecionado = ponto_index
 
-        fig = go.Figure()
+        fig_fronteira = go.Figure()
 
-        fig.add_trace(go.Scatter(
+        fig_fronteira.add_trace(go.Scatter(
             x=st.session_state.volatilidades,
             y=np.array(st.session_state.retornos_alvo)*100,
             mode='lines+markers',
             name='Fronteira Eficiente'
         ))
 
-        fig.add_trace(go.Scatter(
+        fig_fronteira.add_trace(go.Scatter(
             x=[st.session_state.volatilidades[ponto_index]],
             y=[st.session_state.retornos_alvo[ponto_index]*100],
             mode='markers',
@@ -98,7 +86,7 @@ with col1:
             marker=dict(color='blue', size=15)
         ))
 
-        fig.add_trace(go.Scatter(
+        fig_fronteira.add_trace(go.Scatter(
             x=[st.session_state.volatilidades[idx_min_vol]],
             y=[st.session_state.retornos_alvo[idx_min_vol]*100],
             mode='markers',
@@ -108,7 +96,7 @@ with col1:
 
         retorno_max_sharpe = calcular_retorno_portfolio(st.session_state.pesos_max_sharpe, st.session_state.retorno_esperado_ativos)
         volatilidade_max_sharpe = np.sqrt(calcular_variancia(st.session_state.pesos_max_sharpe, st.session_state.matriz_cov))
-        fig.add_trace(go.Scatter(
+        fig_fronteira.add_trace(go.Scatter(
             x=[volatilidade_max_sharpe],
             y=[retorno_max_sharpe*100],
             mode='markers',
@@ -117,7 +105,7 @@ with col1:
         ))
 
         volatilidade_benchmark = np.sqrt(st.session_state.variancia_benchmark[0])
-        fig.add_trace(go.Scatter(
+        fig_fronteira.add_trace(go.Scatter(
             x=[volatilidade_benchmark],
             y=[st.session_state.retorno_esperado_benchmark[0]*100],
             mode='markers',
@@ -125,13 +113,13 @@ with col1:
             marker=dict(color='yellow', size=10)
         ))
 
-        fig.update_layout(
+        fig_fronteira.update_layout(
             title='Fronteira Eficiente',
             xaxis_title='Volatilidade',
             yaxis_title='Retorno Esperado (%)'
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig_fronteira, use_container_width=True)
 
 with col2:
     if st.session_state.pesos is not None and st.session_state.ponto_selecionado is not None:
@@ -162,7 +150,8 @@ with col2:
             hovertemplate="Ticker: %{label}<br>Peso: %{value:.1f}%<extra></extra>",
             sort=True,
             direction='clockwise',
-            pull=[0.1 if v >= 1 else 0 for v in valores]
+            pull=[0.1 if v >= 1 else 0 for v in valores],
+            marker=dict(colors=[st.session_state.cores_por_ticker.get(label, '#CCCCCC') for label in labels])
         ))
 
         fig_pie.update_layout(
@@ -171,36 +160,38 @@ with col2:
         )
         st.plotly_chart(fig_pie, use_container_width=True)
 
-        # NOVO GRÁFICO - Rentabilidade acumulada ao longo do tempo (escala log)
-        st.subheader('RENTABILIDADE DAS AÇÕES AO LONGO DO TEMPO')
+# NOVO BLOCO - Gráfico de rentabilidade acumulada
+if st.session_state.dados_ativos is not None and st.session_state.dados_benchmark is not None:
+    st.subheader('RENTABILIDADE DAS AÇÕES AO LONGO DO TEMPO')
 
-        retornos_acumulados = (1 + st.session_state.dados_ativos.pct_change()).cumprod()
-        retornos_acumulados_benchmark = (1 + st.session_state.dados_benchmark.pct_change()).cumprod()
+    retornos_acumulados = (1 + st.session_state.dados_ativos.pct_change()).cumprod()
+    retornos_acumulados_benchmark = (1 + st.session_state.dados_benchmark.pct_change()).cumprod()
 
-        fig_retornos = go.Figure()
+    fig_ret_acumulada = go.Figure()
 
-        for ticker in st.session_state.tickers_lista:
-            fig_retornos.add_trace(go.Scatter(
-                x=retornos_acumulados.index,
-                y=retornos_acumulados[ticker],
-                mode='lines',
-                name=ticker
-            ))
-
-        fig_retornos.add_trace(go.Scatter(
-            x=retornos_acumulados_benchmark.index,
-            y=retornos_acumulados_benchmark.iloc[:, 0],
+    for ticker in st.session_state.tickers_lista:
+        fig_ret_acumulada.add_trace(go.Scatter(
+            x=retornos_acumulados.index,
+            y=retornos_acumulados[ticker],
             mode='lines',
-            name=f'Benchmark ({benchmark_input})',
-            line=dict(color='black', dash='dash')
+            name=ticker,
+            line=dict(color=st.session_state.cores_por_ticker.get(ticker, None))
         ))
 
-        fig_retornos.update_layout(
-            title='Rentabilidade Acumulada (Escala Log)',
-            xaxis_title='Data',
-            yaxis_title='Crescimento do Capital (x vezes)',
-            yaxis_type='log',
-            hovermode='x unified'
-        )
+    fig_ret_acumulada.add_trace(go.Scatter(
+        x=retornos_acumulados_benchmark.index,
+        y=retornos_acumulados_benchmark.iloc[:, 0],
+        mode='lines',
+        name=f'Benchmark ({benchmark_input})',
+        line=dict(color='black', dash='dash')
+    ))
 
-        st.plotly_chart(fig_retornos, use_container_width=True)
+    fig_ret_acumulada.update_layout(
+        title='Rentabilidade Acumulada (Escala Log)',
+        xaxis_title='Data',
+        yaxis_title='Crescimento do Capital (x vezes)',
+        yaxis_type='log',
+        hovermode='x unified'
+    )
+
+    st.plotly_chart(fig_ret_acumulada, use_container_width=True)
