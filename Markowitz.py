@@ -5,30 +5,47 @@ from scipy.optimize import minimize
 
 def obter_dados_ativos(tickers_str, benchmark, start, end):
     tickers = tickers_str.replace(" ", "").split(",")
+
     try:
+        # Baixar dados dos ativos (com múltiplos tickers)
         dados_ativos = yf.download(tickers, start=start, end=end, progress=False, group_by='ticker', auto_adjust=True)
         dados_benchmark = yf.download(benchmark, start=start, end=end, progress=False, auto_adjust=True)
 
-        # TRATAMENTO DE ERRO: verifica se há coluna 'Close'
+        # Verifica e extrai coluna 'Close'
         if isinstance(dados_ativos.columns, pd.MultiIndex):
-            dados_ativos = dados_ativos['Close']
+            if 'Close' in dados_ativos.columns.levels[0]:
+                dados_ativos = dados_ativos['Close']
+            else:
+                raise ValueError("Coluna 'Close' não encontrada nos dados dos ativos.")
         elif 'Close' in dados_ativos.columns:
             dados_ativos = dados_ativos[['Close']]
         else:
-            raise ValueError("Dados de ativos inválidos: coluna 'Close' não encontrada.")
+            raise ValueError("Dados dos ativos não contêm coluna 'Close'.")
 
+        # Para o benchmark
         if isinstance(dados_benchmark.columns, pd.MultiIndex):
-            dados_benchmark = dados_benchmark['Close']
+            if 'Close' in dados_benchmark.columns.levels[0]:
+                dados_benchmark = dados_benchmark['Close']
+            else:
+                raise ValueError("Coluna 'Close' não encontrada no benchmark.")
         elif 'Close' in dados_benchmark.columns:
             dados_benchmark = dados_benchmark[['Close']]
         else:
-            raise ValueError("Dados do benchmark inválidos: coluna 'Close' não encontrada.")
+            raise ValueError("Dados do benchmark não contêm coluna 'Close'.")
 
-        return dados_ativos.dropna(), dados_benchmark.dropna()
+        # Limpar dados ausentes
+        dados_ativos = dados_ativos.dropna(how='all', axis=1)
+        dados_benchmark = dados_benchmark.dropna()
+
+        if dados_ativos.empty:
+            raise ValueError("Nenhum dado válido retornado para os ativos.")
+        if dados_benchmark.empty:
+            raise ValueError("Nenhum dado válido retornado para o benchmark.")
+
+        return dados_ativos, dados_benchmark
 
     except Exception as e:
         raise Exception(f"Falha ao obter dados: - Tickers: {tickers_str} - Benchmark: {benchmark} Causa: {str(e)}")
-
         # Função para extrair preços com fallback
         def extrair_precos(df):
             if isinstance(df.columns, pd.MultiIndex):
