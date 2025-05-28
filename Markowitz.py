@@ -3,33 +3,31 @@ import pandas as pd
 import yfinance as yf
 from scipy.optimize import minimize
 
-def obter_dados_ativos(tickers, benchmark, start=None, end=None):
-    """Obtém dados históricos com fallback para Close se Adj Close não existir"""
+def obter_dados_ativos(tickers_str, benchmark, start, end):
+    tickers = tickers_str.replace(" ", "").split(",")
     try:
-        # Converter para lista se for string
-        tickers_list = tickers.split(',') if isinstance(tickers, str) else tickers
-        
-        # Verificar tickers válidos
-        if not tickers_list or not all(t.strip() for t in tickers_list):
-            raise ValueError("Lista de tickers inválida")
+        dados_ativos = yf.download(tickers, start=start, end=end, progress=False, group_by='ticker', auto_adjust=True)
+        dados_benchmark = yf.download(benchmark, start=start, end=end, progress=False, auto_adjust=True)
 
-        # Baixar dados com tratamento robusto
-        dados = yf.download(
-            tickers=tickers_list,
-            start=start,
-            end=end,
-            group_by='ticker',
-            progress=False,
-            threads=True
-        )
-        
-        # Tentar obter benchmark
-        bench = yf.download(
-            tickers=benchmark,
-            start=start,
-            end=end,
-            progress=False
-        )
+        # TRATAMENTO DE ERRO: verifica se há coluna 'Close'
+        if isinstance(dados_ativos.columns, pd.MultiIndex):
+            dados_ativos = dados_ativos['Close']
+        elif 'Close' in dados_ativos.columns:
+            dados_ativos = dados_ativos[['Close']]
+        else:
+            raise ValueError("Dados de ativos inválidos: coluna 'Close' não encontrada.")
+
+        if isinstance(dados_benchmark.columns, pd.MultiIndex):
+            dados_benchmark = dados_benchmark['Close']
+        elif 'Close' in dados_benchmark.columns:
+            dados_benchmark = dados_benchmark[['Close']]
+        else:
+            raise ValueError("Dados do benchmark inválidos: coluna 'Close' não encontrada.")
+
+        return dados_ativos.dropna(), dados_benchmark.dropna()
+
+    except Exception as e:
+        raise Exception(f"Falha ao obter dados: - Tickers: {tickers_str} - Benchmark: {benchmark} Causa: {str(e)}")
 
         # Função para extrair preços com fallback
         def extrair_precos(df):
