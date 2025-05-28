@@ -206,31 +206,35 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
 
 
 #-------#
-# NOVO GRÁFICO: Simulação da carteira se todos os ativos seguissem o IBOVESPA (ponderado pelos pesos atuais)
 if st.session_state.dados_benchmark is not None and st.session_state.ponto_selecionado is not None:
     st.subheader('SIMULAÇÃO: IBOVESPA PONDERADO PELOS PESOS DO PORTFÓLIO (Base 100)')
 
     # Normalizar benchmark para base 100
-    benchmark_normalizado = st.session_state.dados_benchmark / st.session_state.dados_benchmark.iloc[0] * 100
+    ibov_series = st.session_state.dados_benchmark.iloc[:, 0]
+    ibov_normalizado = ibov_series / ibov_series.iloc[0] * 100
 
-    # Pegamos os pesos do ponto selecionado na fronteira eficiente
+    # Criar DataFrame replicado para simular o comportamento dos ativos todos como o IBOVESPA
     pesos = st.session_state.pesos[st.session_state.ponto_selecionado]
+    benchmark_replicado = pd.concat([ibov_normalizado] * len(pesos), axis=1)
 
-    # Criamos uma série onde cada linha representa a soma dos pesos multiplicando o mesmo valor (benchmark)
-    benchmark_simulado = benchmark_normalizado.iloc[:, 0].apply(lambda x: np.sum(pesos * x))
+    # Aplicar os pesos da carteira ao benchmark replicado
+    benchmark_ponderado = benchmark_replicado.dot(pesos)
+
+    # Normalizar novamente para base 100, se quiser
+    benchmark_ponderado = benchmark_ponderado / benchmark_ponderado.iloc[0] * 100
 
     fig_simulacao = go.Figure()
     fig_simulacao.add_trace(go.Scatter(
-        x=benchmark_simulado.index,
-        y=benchmark_simulado,
+        x=benchmark_ponderado.index,
+        y=benchmark_ponderado,
         mode='lines',
         name='Simulação do Portfólio com IBOVESPA',
         line=dict(color='orange')
     ))
 
     fig_simulacao.add_trace(go.Scatter(
-        x=benchmark_normalizado.index,
-        y=benchmark_normalizado.iloc[:, 0],
+        x=ibov_normalizado.index,
+        y=ibov_normalizado,
         mode='lines',
         name='IBOVESPA Original',
         line=dict(color='gray', dash='dot')
