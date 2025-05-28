@@ -168,6 +168,37 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
 
     # Normalizar os preços para começarem em 100
     precos_normalizados = st.session_state.dados_ativos / st.session_state.dados_ativos.iloc[0] * 100
+    fig_ret_base100 = go.Figure()
+
+    for ticker in st.session_state.tickers_lista:
+        fig_ret_base100.add_trace(go.Scatter(
+            x=precos_normalizados.index,
+            y=precos_normalizados[ticker],
+            mode='lines',
+            name=ticker,
+            line=dict(color=st.session_state.get('cores_por_ticker', {}).get(ticker, None))
+        ))
+
+    fig_ret_base100.update_layout(
+        title='Rentabilidade Acumulada com Base 100',
+        xaxis_title='Data',
+        yaxis_title='Valor Normalizado (Base = 100)',
+        hovermode='x unified'
+    )
+
+    st.plotly_chart(fig_ret_base100, use_container_width=True)
+
+
+#SEGUNDO GRÁFICO FINAL!!
+
+
+
+
+if st.session_state.dados_ativos is not None and st.session_state.dados_benchmark is not None:
+    st.subheader('RENTABILIDADE DAS AÇÕES AO LONGO DO TEMPO')
+
+    # Normalizar os preços para começarem em 100
+    precos_normalizados = st.session_state.dados_ativos / st.session_state.dados_ativos.iloc[0] * 100
     benchmark_normalizado = st.session_state.dados_benchmark / st.session_state.dados_benchmark.iloc[0] * 100
 
     fig_ret_base100 = go.Figure()
@@ -197,4 +228,3 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
     )
 
     st.plotly_chart(fig_ret_base100, use_container_width=True)
-
