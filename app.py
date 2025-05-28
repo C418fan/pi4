@@ -15,7 +15,7 @@ for key in [
     if key not in st.session_state:
         st.session_state[key] = None
 
-# Layout
+#Layout
 sidebar = st.sidebar
 col1 = st.container()
 col2 = st.container()
