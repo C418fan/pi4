@@ -3,7 +3,11 @@ from datetime import datetime
 import plotly.graph_objects as go
 import numpy as np
 import pandas as pd
-from Markowitz import obter_dados_ativos, calcular_retornos, calcular_variancia, calcular_retorno_portfolio, calcular_sharpe_ratio, otimizar_portfolio, otimizar_sharpe_ratio, fronteira_eficiente
+from Markowitz import (
+    obter_dados_ativos, calcular_retornos, calcular_variancia,
+    calcular_retorno_portfolio, calcular_sharpe_ratio,
+    otimizar_portfolio, otimizar_sharpe_ratio, fronteira_eficiente
+)
 
 # Inicialização de variáveis de estado
 for key in [
@@ -15,7 +19,7 @@ for key in [
     if key not in st.session_state:
         st.session_state[key] = None
 
-#Layout
+# Layout
 sidebar = st.sidebar
 col1 = st.container()
 col2 = st.container()
@@ -50,7 +54,7 @@ with sidebar:
             st.session_state.pesos_max_sharpe = pesos_max_sharpe
             st.session_state.tickers_lista = tickers_input.replace(' ', '').split(',')
 
-            # Definir cores padronizadas por ticker
+            # Paleta de cores por ticker
             cores_tickers = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
             st.session_state.cores_por_ticker = {
                 ticker: cor for ticker, cor in zip(st.session_state.tickers_lista, cores_tickers)
@@ -181,19 +185,65 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
             line=dict(color=st.session_state.get('cores_por_ticker', {}).get(ticker, None))
         ))
 
-    fig_ret_base100.add_trace(go.Scatter(
-        x=benchmark_normalizado.index,
-        y=benchmark_normalizado.iloc[:, 0],
-        mode='lines',
-        name=f'Benchmark ({benchmark_input})',
-        line=dict(color='black', dash='dash')
-    ))
+
 
     fig_ret_base100.update_layout(
         title='Rentabilidade Acumulada com Base 100',
         xaxis_title='Data',
-        yaxis_title='Valor Normalizado (Base = 100)',
         hovermode='x unified'
     )
 
     st.plotly_chart(fig_ret_base100, use_container_width=True)
+
+
+# NOVO GRÁFICO: Comparação entre o portfólio real e o IBOVESPA com base 100
+if (
+    st.session_state.dados_ativos is not None and 
+    st.session_state.dados_benchmark is not None and 
+    st.session_state.ponto_selecionado is not None
+):
+    st.subheader('COMPARAÇÃO: PORTFÓLIO REAL vs IBOVESPA (Base 100)')
+
+    # Dados históricos
+    dados_ativos = st.session_state.dados_ativos
+    dados_benchmark = st.session_state.dados_benchmark.iloc[:, 0]  # Série do benchmark
+
+    # Normalizar benchmark para base 100
+    ibov_normalizado = dados_benchmark / dados_benchmark.iloc[0] * 100
+
+    # Pesos do portfólio no ponto selecionado
+    pesos = st.session_state.pesos[st.session_state.ponto_selecionado]
+
+    # Normalizar ativos para base 100
+    ativos_normalizados = dados_ativos / dados_ativos.iloc[0] * 100
+
+    # Calcular índice do portfólio real ponderado
+    portfolio_real = ativos_normalizados.dot(pesos)
+
+    # Plotar gráfico
+    fig_portfolio_vs_ibov = go.Figure()
+    fig_portfolio_vs_ibov.add_trace(go.Scatter(
+        x=portfolio_real.index,
+        y=portfolio_real,
+        mode='lines',
+        name='Portfólio Real',
+        line=dict(color='green')
+    ))
+
+    fig_portfolio_vs_ibov.add_trace(go.Scatter(
+        x=ibov_normalizado.index,
+        y=ibov_normalizado,
+        mode='lines',
+        name='IBOVESPA',
+        line=dict(color='white', dash='dash')
+    ))
+
+    fig_portfolio_vs_ibov.update_layout(
+        title='Comparação: Portfólio Real vs IBOVESPA (Base 100)',
+        xaxis_title='Data',
+        hovermode='x unified'
+    )
+
+    st.plotly_chart(fig_portfolio_vs_ibov, use_container_width=True)
+
+#-------#
