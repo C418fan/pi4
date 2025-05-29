@@ -191,33 +191,39 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
 
     st.plotly_chart(fig_ret_base100, use_container_width=True)
 
-# NOVO GRÁFICO: Comparação entre o portfólio real e o IBOVESPA com base 100
+# NOVO GRÁFICO: Comparação entre o portfólio real, IBOVESPA e inflação (Base 100)
 if (
     st.session_state.dados_ativos is not None and 
     st.session_state.dados_benchmark is not None and 
     st.session_state.ponto_selecionado is not None
 ):
-    st.subheader('COMPARAÇÃO: PORTFÓLIO REAL vs IBOVESPA (Base 100)')
+    st.subheader('COMPARAÇÃO: PORTFÓLIO REAL vs IBOVESPA vs INFLAÇÃO (Base 100)')
 
     # Dados históricos
     dados_ativos = st.session_state.dados_ativos
-    dados_benchmark = st.session_state.dados_benchmark.iloc[:, 0]  # Série do benchmark
-
-    # Normalizar benchmark para base 100
-    ibov_normalizado = dados_benchmark / dados_benchmark.iloc[0] * 100
-
-    # Pesos do portfólio no ponto selecionado
+    dados_benchmark = st.session_state.dados_benchmark.iloc[:, 0]
     pesos = st.session_state.pesos[st.session_state.ponto_selecionado]
 
-    # Normalizar ativos para base 100
+    # Normalizar ativos e benchmark
     ativos_normalizados = dados_ativos / dados_ativos.iloc[0] * 100
-
-    # Calcular índice do portfólio real ponderado
+    ibov_normalizado = dados_benchmark / dados_benchmark.iloc[0] * 100
     portfolio_real = ativos_normalizados.dot(pesos)
 
+    # EXEMPLO: Série de inflação fictícia (você pode substituir por IPCA real)
+    # Aqui você deve carregar os dados de inflação reais de alguma fonte
+    # Exemplo: st.session_state.inflacao deve ser uma série com índice = datas
+    if 'inflacao' in st.session_state and st.session_state.inflacao is not None:
+        inflacao = st.session_state.inflacao
+        inflacao = inflacao.loc[inflacao.index.isin(portfolio_real.index)]
+        inflacao = inflacao / inflacao.iloc[0] * 100  # Base 100
+    else:
+        st.warning("Série de inflação não carregada. Adicione st.session_state.inflacao como uma série temporal.")
+        inflacao = None
+
     # Plotar gráfico
-    fig_portfolio_vs_ibov = go.Figure()
-    fig_portfolio_vs_ibov.add_trace(go.Scatter(
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
         x=portfolio_real.index,
         y=portfolio_real,
         mode='lines',
@@ -225,7 +231,7 @@ if (
         line=dict(color='green')
     ))
 
-    fig_portfolio_vs_ibov.add_trace(go.Scatter(
+    fig.add_trace(go.Scatter(
         x=ibov_normalizado.index,
         y=ibov_normalizado,
         mode='lines',
@@ -233,11 +239,20 @@ if (
         line=dict(color='white', dash='dash')
     ))
 
-    fig_portfolio_vs_ibov.update_layout(
-        title='Comparação: Portfólio Real vs IBOVESPA (Base 100)',
+    if inflacao is not None:
+        fig.add_trace(go.Scatter(
+            x=inflacao.index,
+            y=inflacao,
+            mode='lines',
+            name='Inflação (IPCA)',
+            line=dict(color='orange', dash='dot')
+        ))
+
+    fig.update_layout(
+        title='Portfólio Real vs IBOVESPA vs Inflação (Base 100)',
         xaxis_title='Data',
+        yaxis_title='Valor Normalizado (Base = 100)',
         hovermode='x unified'
     )
 
-    st.plotly_chart(fig_portfolio_vs_ibov, use_container_width=True)
-
+    st.plotly_chart(fig, use_container_width=True)
