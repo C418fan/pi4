@@ -17,7 +17,7 @@ Linguagem de Programação _Python_
 6. _Plotly_
 
 ## Arquivos do repositório e como devem ser utilizados
-O arquivo [Markowitz.ipynb](https://github.com/C418fan/pi4/blob/30_04/Markowitz.ipynb) trata-se da formação da fronteira. Já o [appy.py](https://github.com/C418fan/pi4/blob/30_04/app.py) nos gera uma UI(interface do usuário) onde o mesmo pode colocar manualmente suas bolsas, métricas e visualizar graficamente os resultados.
+O arquivo [Markowitz.ipynb](https://github.com/C418fan/pi4/blob/30_04/Markowitz.ipynb) trata-se da formação da fronteira. Já o [app.py](https://github.com/C418fan/pi4/blob/30_04/app.py) nos gera uma UI(interface do usuário) onde o mesmo pode colocar manualmente suas bolsas, métricas e visualizar graficamente os resultados.
 
 ## Estatística Descritiva e Correlação
 [_Python Notebook_](https://colab.research.google.com/drive/19FJMsNqKhv_zX_gtVXlzOTyWMWPocK33?usp=sharing#scrollTo=dry5208_JK_Q) o arquivo "Markowitz_pi4.ipynb" anteriormente linkado, apresenta as estatísticas descritivas referentes ao projeto junto com a matriz de correlação usando as bolsas "BBAS3.SA, BBSE3.SA, TAEE11.SA, SAPR4.SA, VIVT3.SA" como template
