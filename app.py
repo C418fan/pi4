@@ -124,6 +124,7 @@ with col1:
         )
 
         st.plotly_chart(fig_fronteira, use_container_width=True)
+
 with col2:
     if st.session_state.pesos is not None and st.session_state.ponto_selecionado is not None:
         st.subheader('PESOS DO PORTFÓLIO SELECIONADO')
