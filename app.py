@@ -205,5 +205,56 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
     st.plotly_chart(fig_ret_base100, use_container_width=True)
 
 
+# NOVO GRÁFICO: Comparação entre o portfólio real e o IBOVESPA com base 100
+if (
+    st.session_state.dados_ativos is not None and 
+    st.session_state.dados_benchmark is not None and 
+    st.session_state.ponto_selecionado is not None
+):
+    st.subheader('COMPARAÇÃO: PORTFÓLIO REAL vs IBOVESPA (Base 100)')
+
+    # Dados históricos
+    dados_ativos = st.session_state.dados_ativos
+    dados_benchmark = st.session_state.dados_benchmark.iloc[:, 0]  # Série do benchmark
+
+    # Normalizar benchmark para base 100
+    ibov_normalizado = dados_benchmark / dados_benchmark.iloc[0] * 100
+
+    # Pesos do portfólio no ponto selecionado
+    pesos = st.session_state.pesos[st.session_state.ponto_selecionado]
+
+    # Normalizar ativos para base 100
+    ativos_normalizados = dados_ativos / dados_ativos.iloc[0] * 100
+
+    # Calcular índice do portfólio real ponderado
+    portfolio_real = ativos_normalizados.dot(pesos)
+
+    # Plotar gráfico
+    fig_portfolio_vs_ibov = go.Figure()
+    fig_portfolio_vs_ibov.add_trace(go.Scatter(
+        x=portfolio_real.index,
+        y=portfolio_real,
+        mode='lines',
+        name='Portfólio Real',
+        line=dict(color='green')
+    ))
+
+    fig_portfolio_vs_ibov.add_trace(go.Scatter(
+        x=ibov_normalizado.index,
+        y=ibov_normalizado,
+        mode='lines',
+        name='IBOVESPA',
+        line=dict(color='black', dash='dash')
+    ))
+
+    fig_portfolio_vs_ibov.update_layout(
+        title='Comparação: Portfólio Real vs IBOVESPA (Base 100)',
+        xaxis_title='Data',
+        yaxis_title='Valor Normalizado (Base = 100)',
+        hovermode='x unified'
+    )
+
+    st.plotly_chart(fig_portfolio_vs_ibov, use_container_width=True)
+
 #-------#
 
