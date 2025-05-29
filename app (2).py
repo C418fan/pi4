@@ -60,6 +60,21 @@ with sidebar:
         except Exception as e:
             st.error(f'Erro ao obter dados: {str(e)}')
 
+    # Upload da inflação (fora do formulário)
+    uploaded_ipca = st.file_uploader("Upload da série de inflação (CSV)", type=['csv'])
+
+    if uploaded_ipca is not None:
+        try:
+            df_ipca = pd.read_csv(uploaded_ipca, parse_dates=['Data'], index_col='Data')
+            if df_ipca.shape[1] == 0:
+                st.error("Arquivo não contém colunas válidas.")
+            else:
+                st.session_state.inflacao = df_ipca.iloc[:, 0]  # primeira coluna como série
+                st.success("Série de inflação carregada com sucesso!")
+        except Exception as e:
+            st.error(f"Erro ao carregar inflação: {e}")
+
+
 with col1:
     if st.session_state.retornos_alvo is not None:
         st.subheader('FRONTEIRA EFICIENTE')
