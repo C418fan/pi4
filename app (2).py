@@ -181,13 +181,7 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
             line=dict(color=st.session_state.get('cores_por_ticker', {}).get(ticker, None))
         ))
 
-    fig_ret_base100.add_trace(go.Scatter(
-        x=benchmark_normalizado.index,
-        y=benchmark_normalizado.iloc[:, 0],
-        mode='lines',
-        name=f'Benchmark ({benchmark_input})',
-        line=dict(color='black', dash='dash')
-    ))
+
 
     fig_ret_base100.update_layout(
         title='Rentabilidade Acumulada com Base 100',
