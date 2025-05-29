@@ -186,7 +186,6 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
     fig_ret_base100.update_layout(
         title='Rentabilidade Acumulada com Base 100',
         xaxis_title='Data',
-        yaxis_title='Valor Normalizado (Base = 100)',
         hovermode='x unified'
     )
 
