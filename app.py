@@ -239,6 +239,7 @@ if (
     ))
 
     fig_portfolio_vs_ibov.update_layout(
+        title='COMPARAÇÃO: PORTFÓLIO REAL vs IBOVESPA (Base 100)',
         xaxis_title='Data',
         hovermode='x unified'
     )
