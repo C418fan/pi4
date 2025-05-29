@@ -237,7 +237,7 @@ if (
         y=ibov_normalizado,
         mode='lines',
         name='IBOVESPA',
-        line=dict(color='black', dash='dash')
+        line=dict(color='white', dash='dash')
     ))
 
     fig_portfolio_vs_ibov.update_layout(
