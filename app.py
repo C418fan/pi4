@@ -198,7 +198,6 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
     fig_ret_base100.update_layout(
         title='Rentabilidade Acumulada com Base 100',
         xaxis_title='Data',
-        yaxis_title='Valor Normalizado (Base = 100)',
         hovermode='x unified'
     )
 
@@ -244,13 +243,12 @@ if (
         y=ibov_normalizado,
         mode='lines',
         name='IBOVESPA',
-        line=dict(color='black', dash='dash')
+        line=dict(color='white', dash='dash')
     ))
 
     fig_portfolio_vs_ibov.update_layout(
         title='Comparação: Portfólio Real vs IBOVESPA (Base 100)',
         xaxis_title='Data',
-        yaxis_title='Valor Normalizado (Base = 100)',
         hovermode='x unified'
     )
 
