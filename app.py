@@ -54,6 +54,7 @@ with sidebar:
             st.session_state.pesos_max_sharpe = pesos_max_sharpe
             st.session_state.tickers_lista = tickers_input.replace(' ', '').split(',')
 
+            # Paleta de cores por ticker
             cores_tickers = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
             st.session_state.cores_por_ticker = {
                 ticker: cor for ticker, cor in zip(st.session_state.tickers_lista, cores_tickers)
@@ -158,16 +159,18 @@ with col2:
         ))
 
         fig_pie.update_layout(
-            title=dict(text='Distribuição dos Pesos (%)', font=dict(color='white')),
-            showlegend=True,
-            font=dict(color='white'),
-            legend=dict(font=dict(color='white'))
+            title='Distribuição dos Pesos (%)',
+            showlegend=True
         )
         st.plotly_chart(fig_pie, use_container_width=True)
 
+
+
+# Gráfico final: Rentabilidade acumulada com base 100
 if st.session_state.dados_ativos is not None and st.session_state.dados_benchmark is not None:
     st.subheader('RENTABILIDADE DAS AÇÕES AO LONGO DO TEMPO')
 
+    # Normalizar os preços para começarem em 100
     precos_normalizados = st.session_state.dados_ativos / st.session_state.dados_ativos.iloc[0] * 100
     benchmark_normalizado = st.session_state.dados_benchmark / st.session_state.dados_benchmark.iloc[0] * 100
 
@@ -182,6 +185,8 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
             line=dict(color=st.session_state.get('cores_por_ticker', {}).get(ticker, None))
         ))
 
+
+
     fig_ret_base100.update_layout(
         title='Rentabilidade Acumulada com Base 100',
         xaxis_title='Data',
@@ -190,6 +195,8 @@ if st.session_state.dados_ativos is not None and st.session_state.dados_benchmar
 
     st.plotly_chart(fig_ret_base100, use_container_width=True)
 
+
+# NOVO GRÁFICO: Comparação entre o portfólio real e o IBOVESPA com base 100
 if (
     st.session_state.dados_ativos is not None and 
     st.session_state.dados_benchmark is not None and 
@@ -197,17 +204,23 @@ if (
 ):
     st.subheader('COMPARAÇÃO: PORTFÓLIO REAL vs IBOVESPA (Base 100)')
 
+    # Dados históricos
     dados_ativos = st.session_state.dados_ativos
-    dados_benchmark = st.session_state.dados_benchmark.iloc[:, 0]
+    dados_benchmark = st.session_state.dados_benchmark.iloc[:, 0]  # Série do benchmark
 
+    # Normalizar benchmark para base 100
     ibov_normalizado = dados_benchmark / dados_benchmark.iloc[0] * 100
 
+    # Pesos do portfólio no ponto selecionado
     pesos = st.session_state.pesos[st.session_state.ponto_selecionado]
 
+    # Normalizar ativos para base 100
     ativos_normalizados = dados_ativos / dados_ativos.iloc[0] * 100
 
+    # Calcular índice do portfólio real ponderado
     portfolio_real = ativos_normalizados.dot(pesos)
 
+    # Plotar gráfico
     fig_portfolio_vs_ibov = go.Figure()
     fig_portfolio_vs_ibov.add_trace(go.Scatter(
         x=portfolio_real.index,
@@ -226,9 +239,11 @@ if (
     ))
 
     fig_portfolio_vs_ibov.update_layout(
-        title='Comparacão: Portfólio Real vs IBOVESPA (Base 100)',
+        title='Comparação: Portfólio Real vs IBOVESPA (Base 100)',
         xaxis_title='Data',
         hovermode='x unified'
     )
 
     st.plotly_chart(fig_portfolio_vs_ibov, use_container_width=True)
+
+#-------#
