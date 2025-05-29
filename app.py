@@ -124,7 +124,6 @@ with col1:
         )
 
         st.plotly_chart(fig_fronteira, use_container_width=True)
-
 with col2:
     if st.session_state.pesos is not None and st.session_state.ponto_selecionado is not None:
         st.subheader('PESOS DO PORTFÓLIO SELECIONADO')
@@ -155,9 +154,7 @@ with col2:
             sort=True,
             direction='clockwise',
             pull=[0.1 if v >= 1 else 0 for v in valores],
-            marker=dict(colors=[
-                st.session_state.get('cores_por_ticker', {}).get(label, '#CCCCCC') for label in labels
-            ])
+            marker=dict(colors=[st.session_state.cores_por_ticker.get(label, '#CCCCCC') for label in labels])
         ))
 
         fig_pie.update_layout(
