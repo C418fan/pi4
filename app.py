@@ -246,4 +246,4 @@ if (
 
     st.plotly_chart(fig_portfolio_vs_ibov, use_container_width=True)
 
-#-------#
+#-------
